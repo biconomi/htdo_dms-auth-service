@@ -2,11 +2,12 @@ const { chromium } = require("playwright");
 
 async function loginDMS() {
 
-  const context = await chromium.launchPersistentContext('./user-data', {
-    headless: false,
-    slowMo: 50
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
+  const context = await browser.newContext();
   const page = await context.newPage();
 
   await page.goto(
@@ -17,12 +18,7 @@ async function loginDMS() {
   await page.fill('#Password', process.env.DMS_PASSWORD);
   await page.click('input[type="submit"]');
 
-  // 🔥 Chờ về đúng domain gốc (không phải /login)
-  await page.waitForURL("**dmscarservice.hyundai.thanhcong.vn/**", {
-    timeout: 60000
-  });
-
-  await page.waitForTimeout(8000);
+  await page.waitForLoadState('networkidle', { timeout: 60000 });
 
   console.log("Final URL:", page.url());
 
@@ -31,9 +27,7 @@ async function loginDMS() {
 
   const token = storage.token_dmservice || null;
 
-  console.log("🔥 TOKEN:", token);
-
-  await context.close();
+  await browser.close();
 
   return token;
 }
