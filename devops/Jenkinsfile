@@ -1,0 +1,182 @@
+pipeline {
+  agent { label "built-in" }
+
+  parameters {
+    choice(
+      name: 'ACTION',
+      choices: ['DEPLOY', 'ROLLBACK'],
+      description: 'DEPLOY version mới hoặc ROLLBACK thủ công'
+    )
+
+    string(
+      name: 'ROLLBACK_TAG',
+      defaultValue: '',
+      description: 'Tag image dùng khi rollback thủ công'
+    )
+  }
+
+  environment {
+    STACK_NAME      = 'htdo_dms-auth-service'
+    GIT_REPO        = 'https://github.com/biconomi/htdo_dms-auth-service'
+    GIT_BRANCH      = 'main'
+    CREDENTIALS_ID  = 'github_cred'
+
+    IMAGE_NAME      = 'harbor.hyundaitaydo.com.vn:8015/htdo_dms-auth-service/dms_htv'
+    IMAGE_TAG       = "${BUILD_NUMBER}"
+  }
+
+  stages {
+
+    /* =========================
+       CHECKOUT
+       ========================= */
+    stage('📦 Checkout Source Code') {
+      when { expression { params.ACTION == 'DEPLOY' } }
+      steps {
+        git branch: "${GIT_BRANCH}",
+            credentialsId: "${CREDENTIALS_ID}",
+            url: "${GIT_REPO}"
+      }
+    }
+
+    /* =========================
+       BUILD IMAGE
+       ========================= */
+    stage('🔨 Build Docker Image') {
+      when { expression { params.ACTION == 'DEPLOY' } }
+      steps {
+        sh '''
+          set -e
+          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \
+            -f devops/Dockerfile .
+        '''
+      }
+    }
+
+    /* =========================
+       PUSH IMAGE
+       ========================= */
+    stage('📥 Push Image lên Harbor') {
+      when { expression { params.ACTION == 'DEPLOY' } }
+      steps {
+        withCredentials([
+          usernamePassword(
+            credentialsId: 'docker-creds-harbor',
+            usernameVariable: 'USER',
+            passwordVariable: 'PASS'
+          )
+        ]) {
+          sh '''
+            echo "$PASS" | docker login -u "$USER" \
+              --password-stdin harbor.hyundaitaydo.com.vn:8015
+            docker push ${IMAGE_NAME}:${IMAGE_TAG}
+          '''
+        }
+      }
+    }
+
+    /* =========================
+       DEPLOY STACK
+       ========================= */
+    stage('🚀 Deploy Stack') {
+      when { expression { params.ACTION == 'DEPLOY' } }
+      steps {
+        sh '''
+          cd devops
+          IMAGE_TAG=${IMAGE_TAG} \
+          docker stack deploy \
+            -c docker-compose.yml \
+            ${STACK_NAME} \
+            --with-registry-auth
+        '''
+      }
+    }
+
+    /* =========================
+       HEALTH CHECK + AUTO ROLLBACK
+       ========================= */
+    stage('🩺 Health Check (Auto Rollback nếu FAIL)') {
+      steps {
+        sh '''
+          echo "🩺 Kiểm tra health stack ${STACK_NAME}"
+          sleep 20
+
+          SERVICES=$(docker service ls \
+            --filter label=com.docker.stack.namespace=${STACK_NAME} \
+            --format "{{.Name}}")
+
+          if [ -z "$SERVICES" ]; then
+            echo "❌ Không tìm thấy service nào → rollback"
+            docker stack services ${STACK_NAME}
+            exit 1
+          fi
+
+          for SERVICE in $SERVICES; do
+            echo "🔍 Check $SERVICE"
+
+            RUNNING=$(docker service ps $SERVICE \
+              --filter "desired-state=running" \
+              --format "{{.CurrentState}}" | grep Running | wc -l)
+
+            EXPECTED=$(docker service inspect $SERVICE \
+              --format '{{.Spec.Mode.Replicated.Replicas}}')
+
+            if [ "$RUNNING" -lt "$EXPECTED" ]; then
+              echo "❌ $SERVICE FAIL ($RUNNING/$EXPECTED)"
+              echo "⏪ AUTO ROLLBACK $SERVICE"
+              docker service rollback $SERVICE
+              exit 1
+            fi
+
+            echo "✅ $SERVICE OK ($RUNNING/$EXPECTED)"
+          done
+        '''
+      }
+    }
+
+    /* =========================
+       CLEANUP
+       ========================= */
+    stage('🧹 Cleanup') {
+      when { expression { params.ACTION == 'DEPLOY' } }
+      steps {
+        sh '''
+          docker container prune -f
+          docker image prune -a -f"
+          docker builder prune -f
+        '''
+      }
+    }
+
+    /* =========================
+       MANUAL ROLLBACK
+       ========================= */
+    stage('⏪ Rollback (Manual)') {
+      when { expression { params.ACTION == 'ROLLBACK' } }
+      steps {
+        sh '''
+          if [ -z "${ROLLBACK_TAG}" ]; then
+            echo "❌ ROLLBACK_TAG rỗng"
+            exit 1
+          fi
+
+          cd devops
+          IMAGE_TAG=${ROLLBACK_TAG} \
+          docker stack deploy \
+            -c docker-compose.yml \
+            ${STACK_NAME} \
+            --with-registry-auth
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ ${params.ACTION} stack ${STACK_NAME} thành công"
+    }
+    failure {
+      echo "❌ Pipeline FAIL – Auto rollback đã chạy nếu cần"
+    }
+  }
+}

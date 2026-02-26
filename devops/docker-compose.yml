@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  dms-auth:
+    image: harbor.hyundaitaydo.com.vn:8015/htdo_dms-auth-service/dms_htv:${IMAGE_TAG}
+    deploy:
+        replicas: 1
+        placement:
+            constraints:
+                - node.role == manager
+        resources:
+              limits:
+                  cpus: "1.0"
+                  memory: 1024M
+              reservations:
+                  memory: 1024M
+    ports:
+      - "3000:3000"
+    env_file:
+      - /home/htdo/htdo/dms-auth-service/.env
+    environment:
+      NODE_ENV: production
+    networks:
+      - htdo_net
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+    htdo_net:
+        external: true
