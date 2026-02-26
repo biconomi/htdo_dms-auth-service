@@ -16,7 +16,7 @@ services:
                   memory: 1024M
     ports:
       - "3000:3000"
-    env_file:
+    volumes:
       - /home/htdo/htdo/dms-auth-service/.env:/app/.env
     environment:
       NODE_ENV: production
