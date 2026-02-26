@@ -22,13 +22,6 @@ services:
       NODE_ENV: production
     networks:
       - htdo_net
-
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
 networks:
     htdo_net:
         external: true
