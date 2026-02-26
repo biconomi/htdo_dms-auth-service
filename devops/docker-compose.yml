@@ -15,7 +15,7 @@ services:
               reservations:
                   memory: 1024M
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - /home/htdo/htdo/dms-auth-service/.env:/app/.env
     environment:
