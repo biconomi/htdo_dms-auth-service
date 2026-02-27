@@ -1,0 +1,72 @@
+
+const axios = require("axios");
+const https = require("https");
+const crypto = require("crypto");
+const tokenService = require("./token.service");
+
+const httpsAgent = new https.Agent({
+  secureOptions: crypto.constants.SSL_OP_LEGACY_SERVER_CONNECT
+});
+
+const DMS_URL = "https://dmscarserviceapi.hyundai.thanhcong.vn/idocNet.HTV.CarService.ClientGate.9507499001.WA";
+function buildHeaders(token) {
+  return {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Authorization": `Bearer ${token}`,
+    "AppAgent": "Web-CarService",
+    "AppLanguageCode": "vi",
+    "AppTid": crypto.randomUUID(),
+    "AppVerCode": "V1",
+    "DealerCode": "HTV",
+    "GwUserCode": "idocNet.idn.CarService.Sv",
+    "GwPassword": "idocNet.idn.CarService.Sv",
+    "NetworkId": "9507499001",
+    "OrgId": "9507499001",
+    "Tid": crypto.randomUUID(),
+    "UtcOffset": 7
+  };
+}
+// 🔥 Detect token hết hạn theo format DMS
+function isDmsUnauthorized(data) {
+  const errors = data?.Data?._dicExcs?.Lst_c_K_DT_SysError || [];
+
+  return errors.some(
+    e => e.PCode === "excSE.ErrorCode" && e.PVal === "Unauthorize"
+  );
+}
+exports.getByKeyNo = async (keyNo,SearchType) => {
+  // const token = await tokenService.getToken();
+  const token='sgPJ5jBNXTciuu_4JeBucf-1iCzxlxyB_Uhkn4ZEeghx1UpY7k2y21ciCdQuIAQ2oyf65Ju6g3pXPn7TK_cGUBSTMrexEmquQozzN9Kwy34EiwwZx7PyN5KkanxrRDM5ch2Txlb4NE4b_xXnpTknJ6F6_AZFF7v298WUE8sCMfdnvzZRAkIl0NM1MOqyeEm5wygzh4I0uk8HtvC72RMDMY0qgFfzeTbqOUIIKy0crzgSvIhOoMALrqzradjK6U-SZO_ULY6_jMwh3Dn2TigjhxlXhI80v_GKHnuBc2OuqRW1AqzpKtFTf4YiHGTvr-g1q-l8xN5jzMT3dMHyXfewzNYrbuzCbFUSlOFbCm6HF_dwG2UmuC__ZV0RnKjWhSOX0mjzex6Ecf1fHKV5BkOmooEyrC059axo3EF2EcpebFM';
+  const params = new URLSearchParams();
+  console.log("SearchType", SearchType);
+  params.append("SearchType", SearchType);
+  // QUATATION_NO,RONO,PLATE_NO,VIN
+  params.append("KeyNo", keyNo);
+  params.append("FlagWH", "0");
+
+  try {
+    const response = await axios.post(
+      `${DMS_URL}/SerRO/GetByKeyNoDL`,
+      params.toString(),
+      {
+        headers: buildHeaders(token),
+        httpsAgent
+      }
+    );
+      const data = response.data;
+
+    // 🔥 Nếu token hết hạn trong body
+    if (isDmsUnauthorized(data)) {
+      console.log("DMS token expired → refreshing...");
+      return 'TOKEN_EXPIRED';
+      // await tokenService.refreshToken();
+      // return callDms(endpoint, payload, false);   
+    }
+      return data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      
+    }
+    throw error;
+  }
+};
