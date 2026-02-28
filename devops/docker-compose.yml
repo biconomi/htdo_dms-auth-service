@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  redis:
+  redis-dms-auth:
     image: redis:7
     command:
       [
