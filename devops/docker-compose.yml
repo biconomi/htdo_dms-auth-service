@@ -10,8 +10,8 @@ services:
         "--user", "nam", "on", ">MatKhauSieuManh123!123456asdasd@4324", "allcommands", "allkeys"
       ]
     # ✅ Expose port Redis ra ngoài (nếu bạn cần truy cập từ host hoặc service khác)
-    ports:
-      - "6390:6379"   # Redis port
+    # ports:
+    #   - "6390:6379"   # Redis port
     deploy:
       placement:
         constraints:
