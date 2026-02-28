@@ -1,13 +1,17 @@
 const callDms = require('../../dms/dms.client');
 
 exports.getQuotationDetail = async (keyNo) => {
-
+    console.log('Tiến hành láy thông tin báo giá từ DMS với keyNo:', keyNo);
 //   1️⃣ Lấy thông tin RO
     const roInfo = await callDms('/SerRO/GetByKeyNoDL', {
         SearchType: 'QUATATION_NO',
         KeyNo: keyNo,
         FlagWH: '0'
-    });  
+    }); 
+
+    if(roInfo===false) {
+        throw new Error('Token expired');
+    }
     const roList = roInfo?.Data?._objResult?.Data?.Lst_Ser_RO;
 
     if (!Array.isArray(roList) || roList.length === 0) {
@@ -119,7 +123,7 @@ function mapQuotationResponse(detailRes) {
       customerRequest: ro.CusRequest   // ✅ thêm yêu cầu khách
     },
 
-    vehicle: {
+    car: {
       plateNo: ro.PlateNo,
       model: ro.ModelName,
       frameNo: ro.FrameNo,

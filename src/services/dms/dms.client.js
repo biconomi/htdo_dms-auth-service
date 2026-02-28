@@ -13,22 +13,21 @@ const BASE_URL =
 function buildHeaders(token) {
   return {
     "Content-Type": "application/x-www-form-urlencoded",
-    "Authorization": `Bearer ${token}`,
-    "AppAgent": "Web-CarService",
-    "AppLanguageCode": "vi",
-    "AppTid": crypto.randomUUID(),
-    "AppVerCode": "V1",
-    "DealerCode": "HTV",
-    "GwUserCode": "idocNet.idn.CarService.Sv",
-    "GwPassword": "idocNet.idn.CarService.Sv",
-    "NetworkId": "9507499001",
-    "OrgId": "9507499001",
-    "Tid": crypto.randomUUID(),
-    "UtcOffset": 7
+    Authorization: `Bearer ${token}`,
+    AppAgent: "Web-CarService",
+    AppLanguageCode: "vi",
+    AppTid: crypto.randomUUID(),
+    AppVerCode: "V1",
+    DealerCode: "HTV",
+    GwUserCode: "idocNet.idn.CarService.Sv",
+    GwPassword: "idocNet.idn.CarService.Sv",
+    NetworkId: "9507499001",
+    OrgId: "9507499001",
+    Tid: crypto.randomUUID(),
+    UtcOffset: 7
   };
 }
 
-// detect token chết trong body
 function isDmsUnauthorized(data) {
   const errors = data?.Data?._dicExcs?.Lst_c_K_DT_SysError || [];
   return errors.some(
@@ -37,35 +36,53 @@ function isDmsUnauthorized(data) {
 }
 
 async function callDms(endpoint, bodyParams) {
-  let token = await tokenService.getToken();
-  console.log("Token:", token);
-  console.log("Calling DMS:", endpoint, bodyParams);
-  const params = new URLSearchParams();
-  Object.keys(bodyParams).forEach(key =>
-    params.append(key, bodyParams[key])
-  );
+  try {
+    let token = await tokenService.getToken();
 
-  const doRequest = async (tk) => {
-    return axios.post(
-      `${BASE_URL}${endpoint}`,
-      params.toString(),
-      {
-        headers: buildHeaders(tk),
-        httpsAgent
+    const doRequest = async (tk) => {
+      const params = new URLSearchParams();
+      Object.keys(bodyParams || {}).forEach(key => {
+        if (bodyParams[key] !== undefined && bodyParams[key] !== null) {
+          params.append(key, bodyParams[key]);
+        }
+      });
+
+      return axios.post(
+        `${BASE_URL}${endpoint}`,
+        params.toString(),
+        {
+          headers: buildHeaders(tk),
+          httpsAgent,
+          timeout: 20000 // ⏱ 20s timeout
+        }
+      );
+    };
+
+    let response = await doRequest(token);
+
+    // Nếu token chết trong body → refresh và retry 1 lần
+    if (isDmsUnauthorized(response.data)) {
+      console.log("Token expired → refresh lại");
+
+      token = await tokenService.resetToken();
+
+      response = await doRequest(token);
+
+      if (isDmsUnauthorized(response.data)) {
+        throw new Error("DMS Unauthorized after retry");
       }
-    );
-  };
+    }
 
-  let response = await doRequest(token);
+    return response.data;
 
-  // Nếu token chết trong body
-  if (isDmsUnauthorized(response.data)) {
-    console.log("Token expired → login lại");
-    // token = await tokenService.resetToken();
-    // response = await doRequest(token);
+  } catch (error) {
+    console.error("DMS CALL ERROR:", {
+      endpoint,
+      message: error.message
+    });
+
+    throw error; // để service layer xử lý tiếp
   }
-
-  return response.data;
 }
 
 module.exports = callDms;
