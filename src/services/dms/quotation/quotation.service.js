@@ -101,13 +101,13 @@ function mapQuotationResponse(detailRes) {
 
   const serviceAmount = services.reduce((a, b) => a + b.amount, 0);
   const partAmount = parts.reduce((a, b) => a + b.amount, 0);
-  const totalBeforeVAT = serviceAmount + partAmount;
+  const totalBeforeVAT = Math.round(serviceAmount + partAmount);
 
-  const totalVAT =
+  const totalVAT =Math.round(
     services.reduce((a, b) => a + b.vatAmount, 0) +
-    parts.reduce((a, b) => a + b.vatAmount, 0);
+    parts.reduce((a, b) => a + b.vatAmount, 0));
 
-  const grandTotal = totalBeforeVAT + totalVAT;
+  const grandTotal = Math.round(totalBeforeVAT + totalVAT);
 
   return {
     header: {
@@ -122,6 +122,13 @@ function mapQuotationResponse(detailRes) {
       memberNo: ro.MemberNo,
       customerRequest: ro.CusRequest   // ✅ thêm yêu cầu khách
     },
+
+    staff: {
+      creator: ro.Creator,
+      suUserName: ro.SUUserName,
+      FullNamePhoneNoCreator: ro.FullNamePhoneNoCreator
+    },
+
 
     car: {
       plateNo: ro.PlateNo,
@@ -147,4 +154,9 @@ function mapQuotationResponse(detailRes) {
       grandTotalText: ''
     }
   };
+}
+function roundTo(value, decimals = 0) {
+  // decimals = số chữ số thập phân muốn giữ
+  const factor = Math.pow(10, decimals);
+  return Math.round((value + Number.EPSILON) * factor) / factor;
 }

@@ -10,6 +10,8 @@ const httpsAgent = new https.Agent({
 const BASE_URL =
   "https://dmscarserviceapi.hyundai.thanhcong.vn/idocNet.HTV.CarService.ClientGate.9507499001.WA";
 
+let refreshPromise = null; // 🔥 dùng chung cho toàn hệ thống
+
 function buildHeaders(token) {
   return {
     "Content-Type": "application/x-www-form-urlencoded",
@@ -35,9 +37,34 @@ function isDmsUnauthorized(data) {
   );
 }
 
+async function getValidToken() {
+  let token = await tokenService.getToken();
+
+  if (token) return token;
+
+  // 🔥 Nếu đang có request refresh → chờ nó
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  // 🔥 Nếu chưa có ai refresh → tạo 1 refresh duy nhất
+  refreshPromise = tokenService.resetToken()
+    .then(newToken => {
+      refreshPromise = null;
+      return newToken;
+    })
+    .catch(err => {
+      refreshPromise = null;
+      throw err;
+    });
+
+  return refreshPromise;
+}
+
 async function callDms(endpoint, bodyParams) {
   try {
-    let token = await tokenService.getToken();
+
+    let token = await getValidToken();
 
     const doRequest = async (tk) => {
       const params = new URLSearchParams();
@@ -53,18 +80,32 @@ async function callDms(endpoint, bodyParams) {
         {
           headers: buildHeaders(tk),
           httpsAgent,
-          timeout: 20000 // ⏱ 20s timeout
+          timeout: 20000
         }
       );
     };
 
     let response = await doRequest(token);
 
-    // Nếu token chết trong body → refresh và retry 1 lần
+    // 🔥 Nếu token chết trong body
     if (isDmsUnauthorized(response.data)) {
+
       console.log("Token expired → refresh lại");
 
-      token = await tokenService.resetToken();
+      // 🔥 chỉ 1 thằng được refresh
+      if (!refreshPromise) {
+        refreshPromise = tokenService.resetToken()
+          .then(newToken => {
+            refreshPromise = null;
+            return newToken;
+          })
+          .catch(err => {
+            refreshPromise = null;
+            throw err;
+          });
+      }
+
+      token = await refreshPromise;
 
       response = await doRequest(token);
 
@@ -80,8 +121,7 @@ async function callDms(endpoint, bodyParams) {
       endpoint,
       message: error.message
     });
-
-    throw error; // để service layer xử lý tiếp
+    throw error;
   }
 }
 
