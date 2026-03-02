@@ -1,162 +1,195 @@
 const callDms = require('../../dms/dms.client');
 
 exports.getQuotationDetail = async (keyNo) => {
-    console.log('Tiến hành láy thông tin báo giá từ DMS với keyNo:', keyNo);
-//   1️⃣ Lấy thông tin RO
-    const roInfo = await callDms('/SerRO/GetByKeyNoDL', {
-        SearchType: 'QUATATION_NO',
-        KeyNo: keyNo,
-        FlagWH: '0'
-    }); 
 
-    if(roInfo===false) {
-        throw new Error('Token expired');
-    }
-    const roList = roInfo?.Data?._objResult?.Data?.Lst_Ser_RO;
+  const roInfo = await callDms('/SerRO/GetByKeyNoDL', {
+    SearchType: 'QUATATION_NO',
+    KeyNo: keyNo,
+    FlagWH: '0'
+  });
 
-    if (!Array.isArray(roList) || roList.length === 0) {
-        throw new Error('Không tìm thấy RO từ KeyNo');
-    }
-    const roId = roList[0].ROID;
-    const { ROID, CusID, CarID, MemberNo } = roList[0];
-    const [detailRes, moreInfoRes] = await Promise.all([
+  if (roInfo === false) {
+    throw new Error('Token expired');
+  }
+
+  const roList = roInfo?.Data?._objResult?.Data?.Lst_Ser_RO;
+
+  if (!Array.isArray(roList) || roList.length === 0) {
+    throw new Error('Không tìm thấy RO từ KeyNo');
+  }
+
+  const { ROID, CusID, CarID, MemberNo } = roList[0];
+
+  const [detailRes, moreInfoRes] = await Promise.all([
     callDms('/SerRO/GetByROIDDL', { ROID }),
     callDms('/SerRO/CheckAndGetMoreInfor', {
-        ROID,
-        CusID,
-        CarID,
-        MemberNo
-        })
-    ]);
+      ROID,
+      CusID,
+      CarID,
+      MemberNo
+    })
+  ]);
 
-  return mapQuotationResponse(detailRes, moreInfoRes);
+  return {
+    raw: {
+      roInfoRaw: roInfo,
+      detailRaw: detailRes,
+      moreInfoRaw: moreInfoRes
+    },
+    calculated: mapQuotationResponse(detailRes, moreInfoRes)
+  };
 };
-function mapQuotationResponse(detailRes) {
+
+function mapQuotationResponse(detailRes, moreInfoRes) {
 
   const raw = detailRes?.Data?._objResult?.Data;
   const ro = raw?.Lst_Ser_RO?.[0] || {};
   const servicesRaw = raw?.Lst_Ser_ROServiceItems || [];
   const partsRaw = raw?.Lst_Ser_ROPartItems || [];
 
-  const formatDateTime = (d) =>
-    d ? new Date(d).toISOString() : null;
+  const round = (v) => Math.round(Number(v) || 0);
 
-  // =============================
+  // ============================
   // 🔧 SERVICES
-  // =============================
+  // ============================
 
   const services = servicesRaw.map((s, index) => {
-    const qty = s.ActManHour || s.StdManHour || 0;
-    const price = s.Price || 0;
-    const vatRate = s.VAT || 0;
 
-    const amount = qty * price;
-    const vatAmount = amount * vatRate / 100;
-    const total = amount + vatAmount;
+    const qty = Number(s.ActManHour || s.StdManHour || 0);
+    const price = Number(s.Price || 0);
+    const factor = Number(s.Factor ?? 1);
+    const vatRate = Number(s.VAT || 0);
+
+    const amountBeforeVAT = round(qty * price * factor);
+    const vatAmount = round(amountBeforeVAT * vatRate / 100);
+    const total = round(amountBeforeVAT + vatAmount);
 
     return {
       no: index + 1,
-      code: s.SerCode,
-      name: s.SerName,
-      unit: "Giờ",
-      qty,
-      price,
-      amount,
-      vatRate,
-      vatAmount,
-      total
+      SerCode: s.SerCode,
+      SerName: s.SerName,
+      Unit: "Giờ",
+      Qty: qty,
+      Price: price,
+      StdManHour: s.StdManHour,
+      Factor: factor,
+      VAT: vatRate,
+      AmountBeforeVAT: amountBeforeVAT,
+      VATAmount: vatAmount,
+      Total: total
     };
   });
 
-  // =============================
+  // ============================
   // 🔩 PARTS
-  // =============================
+  // ============================
 
   const parts = partsRaw.map((p, index) => {
-    const qty = p.Need || 0;
-    const price = p.Price || 0;
-    const vatRate = p.VAT || 0;
 
-    const amount = qty * price;
-    const vatAmount = amount * vatRate / 100;
-    const total = amount + vatAmount;
+    const qty = Number(p.Need || 0);
+    const price = Number(p.Price || 0);
+    const factor = Number(p.Factor ?? 1);
+    const vatRate = Number(p.VAT || 0);
+
+    const amountBeforeVAT = round(qty * price * factor);
+    const vatAmount = round(amountBeforeVAT * vatRate / 100);
+    const total = round(amountBeforeVAT + vatAmount);
 
     return {
       no: index + 1,
-      code: p.PartCode,
-      name: p.VieName,
-      unit: p.Unit,
-      qty,
-      price,
-      amount,
-      vatRate,
-      vatAmount,
-      total
+      PartCode: p.PartCode,
+      PartName: p.VieName,
+      Unit: p.Unit,
+      Qty: qty,
+      Price: price,
+      Need: p.Need,
+      Factor: factor,
+      VAT: vatRate,
+      ROType: p.ROType,
+      EngineerName: p.EngineerName,
+      GroupRID: p.GroupRID,
+      GroupRName: p.GroupRName,
+      AmountBeforeVAT: amountBeforeVAT,
+      VATAmount: vatAmount,
+      Total: total
     };
   });
 
-  // =============================
-  // 💰 SUMMARY
-  // =============================
+  // ============================
+  // 💰 PAYMENT SUMMARY
+  // ============================
 
-  const serviceAmount = services.reduce((a, b) => a + b.amount, 0);
-  const partAmount = parts.reduce((a, b) => a + b.amount, 0);
-  const totalBeforeVAT = Math.round(serviceAmount + partAmount);
+  const totalServiceBeforeVAT = services.reduce((a, b) => a + b.AmountBeforeVAT, 0);
+  const totalPartBeforeVAT = parts.reduce((a, b) => a + b.AmountBeforeVAT, 0);
 
-  const totalVAT =Math.round(
-    services.reduce((a, b) => a + b.vatAmount, 0) +
-    parts.reduce((a, b) => a + b.vatAmount, 0));
+  const totalBeforeVAT = round(totalServiceBeforeVAT + totalPartBeforeVAT);
 
-  const grandTotal = Math.round(totalBeforeVAT + totalVAT);
+  const totalVAT = round(
+    services.reduce((a, b) => a + b.VATAmount, 0) +
+    parts.reduce((a, b) => a + b.VATAmount, 0)
+  );
+
+  const totalAfterVAT = round(totalBeforeVAT + totalVAT);
+
+  // Nếu có AmountFromMC (bảo hiểm)
+  const insurancePay = Number(ro.AmountFromMC || 0);
+  const customerPay = round(totalAfterVAT - insurancePay);
 
   return {
-    header: {
-      quotationNo: ro.RONo
-    },
+
+    // ============================
+    // 👤 CUSTOMER INFO
+    // ============================
 
     customer: {
-      customerName: ro.CusName,
-      customerAddress: ro.CusAddress,
-      customerPhone: ro.CusMobile,
-      customerIdCard: ro.IDCardNo,
-      memberNo: ro.MemberNo,
-      customerRequest: ro.CusRequest   // ✅ thêm yêu cầu khách
+      CusName: ro.CusName,
+      CusAddress: ro.CusAddress,
+      CusMobile: ro.CusMobile,
+      IDCardNo: ro.IDCardNo,
+      MemberNo: ro.MemberNo,
+      CusRequest: ro.CusRequest
     },
 
-    staff: {
-      creator: ro.Creator,
-      suUserName: ro.SUUserName,
-      FullNamePhoneNoCreator: ro.FullNamePhoneNoCreator
-    },
-
+    // ============================
+    // 🚗 CAR INFO
+    // ============================
 
     car: {
-      plateNo: ro.PlateNo,
-      model: ro.ModelName,
-      frameNo: ro.FrameNo,
-      engineNo: ro.EngineNo,
-      color: ro.ColorCode,
-      km: ro.Km,
-      warrantyKM: ro.WarrantyKM,
-      warrantyExpireDate: formatDateTime(ro.WarrantyExpiresDate),
-      checkInDate: formatDateTime(ro.CheckInDate)  // ✅ thêm thời gian vào
+      PlateNo: ro.PlateNo,
+      ModelName: ro.ModelName,
+      FrameNo: ro.FrameNo,
+      EngineNo: ro.EngineNo,
+      ColorCode: ro.ColorCode,
+      Km: ro.Km,
+      WarrantyKM: ro.WarrantyKM,
+      WarrantyExpiresDate: ro.WarrantyExpiresDate,
+      CheckInDate: ro.CheckInDate
     },
 
+    // ============================
+    // 🔧 SERVICES
+    // ============================
+
     services,
+
+    // ============================
+    // 🔩 PARTS
+    // ============================
+
     parts,
 
-    summary: {
-      serviceAmount,
-      partAmount,
-      totalBeforeVAT,
-      totalVAT,
-      grandTotal,
-      grandTotalText: ''
+    // ============================
+    // 💳 PAYMENT
+    // ============================
+
+    payment: {
+      TotalServiceBeforeVAT: totalServiceBeforeVAT,
+      TotalPartBeforeVAT: totalPartBeforeVAT,
+      TotalBeforeVAT: totalBeforeVAT,
+      TotalVAT: totalVAT,
+      TotalAfterVAT: totalAfterVAT,
+      InsurancePay: insurancePay,
+      CustomerPay: customerPay
     }
   };
-}
-function roundTo(value, decimals = 0) {
-  // decimals = số chữ số thập phân muốn giữ
-  const factor = Math.pow(10, decimals);
-  return Math.round((value + Number.EPSILON) * factor) / factor;
 }
