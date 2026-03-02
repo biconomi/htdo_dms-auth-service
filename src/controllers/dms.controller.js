@@ -47,13 +47,29 @@ exports.getQuotation = async (req, res) => {
   res.json({ success: true, data });
 };
 exports.settlementInvoice = async (req, res) => {
-  const { keyNo } = req.body;
-  if (!keyNo) {
-    return res.status(400).json({
+  try {
+    let keyNo = req.body;
+    console.log('Received settlement request with body:', req.body);
+    // Nếu body là object thì lấy keyNo
+    if (typeof req.body === 'object') {
+      keyNo = req.body.keyNo;
+    }
+
+    if (!keyNo) {
+      return res.status(400).json({
+        success: false,
+        message: "keyNo is required"
+      });
+    }
+
+    const data = await settlementService.settlementInvoice(keyNo);
+
+    res.json({ success: true, data });
+
+  } catch (error) {
+    res.status(404).json({
       success: false,
-      message: "keyNo is required"
+      message: error.message
     });
   }
-  const data = await settlementService.settlementInvoice(keyNo);
-  res.json({ success: true, data });
 };

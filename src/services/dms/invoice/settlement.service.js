@@ -1,7 +1,7 @@
 const callDms = require('../dms.client');
 
 exports.settlementInvoice = async (keyNo) => {
-
+  console.log('Tiến hành láy thông tin quyết toán từ DMS với keyNo:', keyNo);
   const roInfo = await callDms('/SerRO/GetByKeyNoDL', {
     SearchType: 'QUATATION_NO',
     KeyNo: keyNo,

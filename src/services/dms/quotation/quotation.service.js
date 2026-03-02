@@ -1,7 +1,7 @@
 const callDms = require('../../dms/dms.client');
 
 exports.getQuotationDetail = async (keyNo) => {
-
+  console.log('Tiến hành láy thông tin báo giá từ DMS với keyNo:', keyNo);
   const roInfo = await callDms('/SerRO/GetByKeyNoDL', {
     SearchType: 'QUATATION_NO',
     KeyNo: keyNo,
