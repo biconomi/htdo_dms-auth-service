@@ -85,3 +85,7 @@ curl -X POST http://localhost:3000/api/settlementInvoice \
   -d '{
         "keyNo": "VS086.1-260225-058"
       }'
+
+
+====== 
+mô tả cấu trúc json

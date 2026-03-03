@@ -16,8 +16,11 @@ exports.settlementInvoice = async (keyNo) => {
     throw new Error('Không tìm thấy RO từ KeyNo');
   }
 
-  const { ROID, CusID, CarID, MemberNo } = roList[0];
-
+  const { ROID, CusID, CarID, MemberNo, Status} = roList[0];
+  // console.log(`ROID: ${ROID}, CusID: ${CusID}, CarID: ${CarID}, MemberNo: ${MemberNo}, Status: ${Status}`);
+  if (Status !== 'CEND') {
+    throw new Error('RO chưa kết lệnh, không thể lấy thông tin quyết toán');
+  }
   const [detailRes, moreInfoRes, cardRes] = await Promise.all([
     callDms('/SerRO/GetByROIDDL', { ROID }),
     callDms('/SerRO/CheckAndGetMoreInfor', { ROID, CusID, CarID, MemberNo }),
@@ -117,7 +120,7 @@ function buildSettlementResponse(roInfo, detailRes, moreInfoRes, cardRes) {
       roInfo,
       detailRes,
       moreInfoRes,
-      cardRes
+      // cardRes
     },
 
     calculated: {
