@@ -25,10 +25,10 @@ exports.getRevenueByDateRange = async (from, to) => {
   }
 
   return {
-    // raw: revenueRes,
-    calculated: mapRevenueResponse(
-      revenueRes?.Data?._objResult?.Data
-    )
+    fromDate: from,
+    toDate: to,
+    queriedAt: new Date().toISOString(), // thời điểm server xử lý
+    calculated: mapRevenueResponse(revenueData)
   };
 };
 
