@@ -26,9 +26,8 @@ exports.settlementInvoice = async (keyNo) => {
   }
   const [detailRes, moreInfoRes, cardRes] = await Promise.all([
     callDms('/SerRO/GetByROIDDL', { ROID }),
-    callDms('/SerRO/GetInvoiceByROIDDL', { ROID }),
+    callDms('/SerRO/CheckAndGetMoreInfor', { ROID, CusID, CarID, MemberNo }),
     callDms('/SerRO/GetCardForInvoiceDL', { ROID })
-    
   ]);
   // return roInfo;
   return buildSettlementResponse(roInfo, detailRes, moreInfoRes, cardRes);
@@ -122,7 +121,7 @@ function buildSettlementResponse(roInfo, detailRes, moreInfoRes, cardRes) {
   const amountFromCard = round(cardData.AmountFromMC || 0);
 
   const customerPay = round(totalAfterVAT - amountFromCard);
-  // return amountFromCard;
+  return amountFromCard;
   return {
     raw: {
       roInfo,
