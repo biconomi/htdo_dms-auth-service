@@ -10,4 +10,5 @@ router.post("/settlementInvoice", dmsController.settlementInvoice);
 
 // báo cáo doanh thu
 router.post("/reports/revenue", dmsReportController.getRevenueReport);
+router.post("/reports/revenueAction", dmsReportController.getRevenueReportAction);
 module.exports = router;

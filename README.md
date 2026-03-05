@@ -89,3 +89,24 @@ curl -X POST http://localhost:3000/api/settlementInvoice \
 
 ====== 
 mô tả cấu trúc json
+
+<!-- Caayu hỏi angent -->
+Tổng doanh thu trong khoảng thời gian → total_revenue
+Ngày có doanh thu cao nhất → highest_revenue_day
+Ngày có doanh thu thấp nhất → lowest_revenue_day
+Tháng có doanh thu cao nhất → highest_revenue_month
+Tháng có doanh thu thấp nhất → lowest_revenue_month
+Doanh thu trung bình trong khoảng thời gian → average_revenue
+
+Doanh thu của từng cố vấn dịch vụ → revenue_by_advisor
+Cố vấn có doanh thu cao nhất → top_advisor
+Cố vấn có doanh thu thấp nhất → lowest_advisor
+Top 3 cố vấn có doanh thu cao nhất → top_3_advisors
+Cố vấn có doanh thu cao nhất theo từng tháng → top_advisor_by_month
+
+Doanh thu theo model xe → revenue_by_car_model
+Model xe có doanh thu cao nhất → top_revenue_car_model
+Model xe có doanh thu thấp nhất → lowest_revenue_car_model
+
+Model xe có số lượng sửa chữa nhiều nhất → top_car_by_count
+Top 5 model xe có số lượng sửa chữa nhiều nhất → top_5_cars_by_count
