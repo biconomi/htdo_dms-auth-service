@@ -25,6 +25,7 @@ exports.getRevenueByDateRange = async (from, to) => {
   }
 
   return {
+    raw: revenueRes,
     fromDate: from,
     toDate: to,
     queriedAt: new Date().toISOString(), // thời điểm server xử lý
@@ -45,20 +46,17 @@ function mapRevenueResponse(rawData) {
       totalAmount: 0,
       totalVAT: 0,
       totalSumAmount: 0,
-      topAdvisor: null
+      advisors: []
     };
   }
 
-  // 1️⃣ Lọc xe không trùng biển số
   const uniquePlates = new Set(list.map(item => item.PlateNo));
   const totalCars = uniquePlates.size;
 
-  // 2️⃣ Tổng doanh thu
   let totalAmount = 0;
   let totalVAT = 0;
   let totalSumAmount = 0;
 
-  // 3️⃣ Gom theo cố vấn dịch vụ
   const advisorMap = {};
 
   list.forEach(item => {
@@ -88,23 +86,22 @@ function mapRevenueResponse(rawData) {
     advisorMap[name].sumAmount += sumAmount;
   });
 
-  // 4️⃣ Tìm cố vấn cao nhất
-  const advisors = Object.values(advisorMap);
-  const topAdvisor = advisors.sort((a, b) => b.sumAmount - a.sumAmount)[0];
+  // 🔥 Convert thành mảng + sort giảm dần
+  const advisors = Object.values(advisorMap)
+    .map(a => ({
+      name: a.name,
+      totalCars: a.plates.size,
+      totalAmount: roundMoney(a.amount),
+      totalVAT: roundMoney(a.vat),
+      totalSumAmount: roundMoney(a.sumAmount)
+    }))
+    .sort((a, b) => b.totalSumAmount - a.totalSumAmount);
 
   return {
     totalCars,
     totalAmount: roundMoney(totalAmount),
     totalVAT: roundMoney(totalVAT),
     totalSumAmount: roundMoney(totalSumAmount),
-    topAdvisor: topAdvisor
-      ? {
-          name: topAdvisor.name,
-          totalCars: topAdvisor.plates.size,
-          totalAmount: roundMoney(topAdvisor.amount),
-          totalVAT: roundMoney(topAdvisor.vat),
-          totalSumAmount: roundMoney(topAdvisor.sumAmount)
-        }
-      : null
+    advisors // trả toàn bộ danh sách
   };
 }
