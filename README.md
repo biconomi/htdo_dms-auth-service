@@ -110,3 +110,23 @@ Model xe có doanh thu thấp nhất → lowest_revenue_car_model
 
 Model xe có số lượng sửa chữa nhiều nhất → top_car_by_count
 Top 5 model xe có số lượng sửa chữa nhiều nhất → top_5_cars_by_count
+
+
+| value1           | rule        | value2                   |
+| ---------------- | ----------- | ------------------------ |
+| {{$json.action}} | is equal to | total_revenue            |
+| {{$json.action}} | is equal to | highest_revenue_day      |
+| {{$json.action}} | is equal to | lowest_revenue_day       |
+| {{$json.action}} | is equal to | highest_revenue_month    |
+| {{$json.action}} | is equal to | lowest_revenue_month     |
+| {{$json.action}} | is equal to | average_revenue          |
+| {{$json.action}} | is equal to | revenue_by_advisor       |
+| {{$json.action}} | is equal to | top_advisor              |
+| {{$json.action}} | is equal to | lowest_advisor           |
+| {{$json.action}} | is equal to | top_3_advisors           |
+| {{$json.action}} | is equal to | top_advisor_by_month     |
+| {{$json.action}} | is equal to | revenue_by_car_model     |
+| {{$json.action}} | is equal to | top_revenue_car_model    |
+| {{$json.action}} | is equal to | lowest_revenue_car_model |
+| {{$json.action}} | is equal to | top_car_by_count         |
+| {{$json.action}} | is equal to | top_5_cars_by_count      |

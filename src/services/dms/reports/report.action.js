@@ -157,7 +157,9 @@ exports.processRevenueAction = async (payload) => {
         fromDate,
         toDate,
         queriedAt,
-        totalRevenue: calculated.totalSumAmount
+        totalRevenue: calculated.totalSumAmount,
+        totalCars: calculated.totalCars
+
       };
     /**
      * Ngày có doanh thu cao nhất trong khoảng thời gian
