@@ -43,6 +43,7 @@ function mapRevenueResponse(rawData) {
   if (!Array.isArray(list) || list.length === 0) {
     return {
       totalCars: 0,
+      totalVisits: 0,
       totalAmount: 0,
       totalVAT: 0,
       totalSumAmount: 0,
@@ -50,8 +51,14 @@ function mapRevenueResponse(rawData) {
     };
   }
 
+  // Xe khác nhau
   const uniquePlates = new Set(list.map(item => item.PlateNo));
+
+  // Lượt ghé xưởng (RO)
+  const uniqueROs = new Set(list.map(item => item.RONo));
+
   const totalCars = uniquePlates.size;
+  const totalVisits = uniqueROs.size;
 
   let totalAmount = 0;
   let totalVAT = 0;
@@ -74,6 +81,7 @@ function mapRevenueResponse(rawData) {
       advisorMap[name] = {
         name,
         plates: new Set(),
+        ros: new Set(),
         amount: 0,
         vat: 0,
         sumAmount: 0
@@ -81,16 +89,18 @@ function mapRevenueResponse(rawData) {
     }
 
     advisorMap[name].plates.add(item.PlateNo);
+    advisorMap[name].ros.add(item.RONo);
+
     advisorMap[name].amount += amount;
     advisorMap[name].vat += vat;
     advisorMap[name].sumAmount += sumAmount;
   });
 
-  // 🔥 Convert thành mảng + sort giảm dần
   const advisors = Object.values(advisorMap)
     .map(a => ({
       name: a.name,
       totalCars: a.plates.size,
+      totalVisits: a.ros.size,
       totalAmount: roundMoney(a.amount),
       totalVAT: roundMoney(a.vat),
       totalSumAmount: roundMoney(a.sumAmount)
@@ -99,9 +109,10 @@ function mapRevenueResponse(rawData) {
 
   return {
     totalCars,
+    totalVisits,
     totalAmount: roundMoney(totalAmount),
     totalVAT: roundMoney(totalVAT),
     totalSumAmount: roundMoney(totalSumAmount),
-    advisors // trả toàn bộ danh sách
+    advisors
   };
 }
