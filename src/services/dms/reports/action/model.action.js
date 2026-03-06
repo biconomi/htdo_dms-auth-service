@@ -1,6 +1,6 @@
-
-// theo model xe
-// Doanh thu theo model xe giảm dần
+// ============================
+// Doanh thu theo model xe
+// ============================
 exports.getRevenueByCarModel = function(list) {
 
   const modelMap = {};
@@ -17,6 +17,7 @@ exports.getRevenueByCarModel = function(list) {
       modelMap[model] = {
         model,
         plates: new Set(),
+        ros: new Set(),
         totalAmount: 0,
         totalVAT: 0,
         totalSumAmount: 0
@@ -24,6 +25,8 @@ exports.getRevenueByCarModel = function(list) {
     }
 
     modelMap[model].plates.add(item.PlateNo);
+    modelMap[model].ros.add(item.RONo);
+
     modelMap[model].totalAmount += amount;
     modelMap[model].totalVAT += vat;
     modelMap[model].totalSumAmount += sum;
@@ -33,19 +36,22 @@ exports.getRevenueByCarModel = function(list) {
   const result = Object.values(modelMap).map(m => ({
     model: m.model,
     totalCars: m.plates.size,
+    totalVisits: m.ros.size,
     totalAmount: Math.round(m.totalAmount),
     totalVAT: Math.round(m.totalVAT),
     totalSumAmount: Math.round(m.totalSumAmount)
   }));
 
-  // sort doanh thu giảm dần
   result.sort((a, b) => b.totalSumAmount - a.totalSumAmount);
 
   return result;
 
 };
 
-// Lấy model xe có doanh thu cao nhất
+
+// ============================
+// Model xe doanh thu cao nhất
+// ============================
 exports.getTopRevenueCarModel = function(list) {
 
   const models = exports.getRevenueByCarModel(list);
@@ -56,7 +62,10 @@ exports.getTopRevenueCarModel = function(list) {
 
 };
 
-// Lấy model xe có doanh thu thấp nhất
+
+// ============================
+// Model xe doanh thu thấp nhất
+// ============================
 exports.getLowestRevenueCarModel = function(list) {
 
   const models = exports.getRevenueByCarModel(list);
@@ -66,7 +75,11 @@ exports.getLowestRevenueCarModel = function(list) {
   return models[models.length - 1];
 
 };
-// Lấy model xe có số lượng sửa chữa nhiều nhất
+
+
+// ============================
+// Model xe có lượt sửa nhiều nhất
+// ============================
 exports.getTopCarByCount = function(list) {
 
   const modelMap = {};
@@ -78,24 +91,32 @@ exports.getTopCarByCount = function(list) {
     if (!modelMap[model]) {
       modelMap[model] = {
         model,
-        plates: new Set()
+        plates: new Set(),
+        ros: new Set()
       };
     }
 
     modelMap[model].plates.add(item.PlateNo);
+    modelMap[model].ros.add(item.RONo);
 
   });
 
   const result = Object.values(modelMap).map(m => ({
     model: m.model,
-    totalCars: m.plates.size
+    totalCars: m.plates.size,
+    totalVisits: m.ros.size
   }));
 
-  result.sort((a, b) => b.totalCars - a.totalCars);
+  result.sort((a, b) => b.totalVisits - a.totalVisits);
 
   return result[0] || null;
-}; 
-// Lấy top 5 model xe có số lượng sửa chữa nhiều nhất
+
+};
+
+
+// ============================
+// Top N model xe sửa nhiều nhất
+// ============================
 exports.getTopCarByCounts = function(list, top = 5) {
 
   const modelMap = {};
@@ -105,20 +126,25 @@ exports.getTopCarByCounts = function(list, top = 5) {
     const model = item.TradeMarkNameModel || "Unknown";
 
     if (!modelMap[model]) {
-      modelMap[model] = new Set();
+      modelMap[model] = {
+        plates: new Set(),
+        ros: new Set()
+      };
     }
 
-    modelMap[model].add(item.PlateNo);
+    modelMap[model].plates.add(item.PlateNo);
+    modelMap[model].ros.add(item.RONo);
 
   });
 
-  const result = Object.entries(modelMap).map(([model, plates]) => ({
+  const result = Object.entries(modelMap).map(([model, data]) => ({
     model,
-    totalCars: plates.size
+    totalCars: data.plates.size,
+    totalVisits: data.ros.size
   }));
 
   return result
-    .sort((a, b) => b.totalCars - a.totalCars)
+    .sort((a, b) => b.totalVisits - a.totalVisits)
     .slice(0, top);
 
 };

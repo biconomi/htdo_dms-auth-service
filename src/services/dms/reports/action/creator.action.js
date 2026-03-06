@@ -14,6 +14,7 @@ exports.getRevenueByAdvisor = function(list) {
       advisorMap[name] = {
         advisor: name,
         plates: new Set(),
+        ros: new Set(),
         totalAmount: 0,
         totalVAT: 0,
         totalSumAmount: 0
@@ -21,6 +22,8 @@ exports.getRevenueByAdvisor = function(list) {
     }
 
     advisorMap[name].plates.add(item.PlateNo);
+    advisorMap[name].ros.add(item.RONo);
+
     advisorMap[name].totalAmount += amount;
     advisorMap[name].totalVAT += vat;
     advisorMap[name].totalSumAmount += sum;
@@ -30,27 +33,34 @@ exports.getRevenueByAdvisor = function(list) {
   const advisors = Object.values(advisorMap).map(a => ({
     advisor: a.advisor,
     totalCars: a.plates.size,
+    totalVisits: a.ros.size,
     totalAmount: Math.round(a.totalAmount),
     totalVAT: Math.round(a.totalVAT),
     totalSumAmount: Math.round(a.totalSumAmount)
   }));
 
-  // sort giảm dần theo doanh thu
   advisors.sort((a, b) => b.totalSumAmount - a.totalSumAmount);
 
   return advisors;
 };
 
-// Lấy cố vấn có doanh thu cao nhất
+
+// ============================
+// Cố vấn doanh thu cao nhất
+// ============================
 exports.getTopAdvisor = function(list) {
 
   const advisors = this.getRevenueByAdvisor(list);
 
   if (advisors.length === 0) return null;
 
-  return advisors[0]; // đã sort giảm dần
+  return advisors[0];
 };
-// Lấy cố vẫn có doanh thu thấp nhất
+
+
+// ============================
+// Cố vấn doanh thu thấp nhất
+// ============================
 exports.getLowestAdvisor = function(list) {
 
   const advisors = this.getRevenueByAdvisor(list);
@@ -62,7 +72,10 @@ exports.getLowestAdvisor = function(list) {
   return advisors[0];
 };
 
-// top 3 cố vấn có doanh thu cao nhất
+
+// ============================
+// Top N cố vấn doanh thu cao
+// ============================
 exports.getTopAdvisors = function(list, limit = 3) {
 
   const advisors = this.getRevenueByAdvisor(list);
@@ -70,15 +83,19 @@ exports.getTopAdvisors = function(list, limit = 3) {
   return advisors.slice(0, limit);
 };
 
-// lấy doanh thu cao nhất của mỗi tháng theo cố vẫn dịch vụ chỉ lấy người cao nhất
+
+// ============================
+// Cố vấn doanh thu cao nhất theo tháng
+// ============================
 exports.getTopAdvisorByMonth = function(list) {
 
   const monthAdvisorMap = {};
 
   list.forEach(item => {
 
-    const month = item.PaidCreatedDate?.slice(0, 7); // YYYY-MM
+    const month = item.PaidCreatedDate?.slice(0, 7);
     const advisor = item.CreatorName || "Unknown";
+
     const key = `${month}_${advisor}`;
 
     const sum = Number(item.SumAmount || 0);
@@ -88,24 +105,27 @@ exports.getTopAdvisorByMonth = function(list) {
         month,
         advisor,
         plates: new Set(),
+        ros: new Set(),
         revenue: 0
       };
     }
 
     monthAdvisorMap[key].plates.add(item.PlateNo);
+    monthAdvisorMap[key].ros.add(item.RONo);
+
     monthAdvisorMap[key].revenue += sum;
 
   });
 
-  // convert sang array
   const rows = Object.values(monthAdvisorMap).map(r => ({
     month: r.month,
     advisor: r.advisor,
     totalCars: r.plates.size,
+    totalVisits: r.ros.size,
     totalRevenue: Math.round(r.revenue)
   }));
 
-  // group theo tháng để lấy max
+
   const result = {};
 
   rows.forEach(r => {
